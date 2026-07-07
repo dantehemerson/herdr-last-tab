@@ -1,8 +1,8 @@
-id = "third774.last-workspace"
-name = "Last Workspace"
+id = "dantehemerson.last-tab"
+name = "Last Tab"
 version = "0.1.0"
 min_herdr_version = "0.7.0"
-description = "Toggle between the current and previously focused Herdr workspace."
+description = "Toggle between the current and previously focused Herdr tab."
 platforms = ["linux", "macos"]
 
 [[build]]
@@ -11,14 +11,14 @@ platforms = ["linux", "macos"]
 
 [[actions]]
 id = "toggle"
-title = "Last workspace"
+title = "Last tab"
 contexts = ["global", "workspace"]
-command = ["./target/release/herdr-last-workspace", "toggle"]
+command = ["./target/release/herdr-last-tab", "toggle"]
 
 [[events]]
-on = "workspace.focused"
-command = ["./target/release/herdr-last-workspace", "focused"]
+on = "tab.focused"
+command = ["./target/release/herdr-last-tab", "focused"]
 
 [[events]]
-on = "workspace.closed"
-command = ["./target/release/herdr-last-workspace", "closed"]
+on = "tab.closed"
+command = ["./target/release/herdr-last-tab", "closed"]

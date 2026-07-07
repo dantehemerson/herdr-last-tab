@@ -1,9 +1,9 @@
 [package]
-name = "herdr-last-workspace"
+name = "herdr-last-tab"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Herdr plugin action that toggles to the previously focused workspace."
+description = "Herdr plugin action that toggles to the previously focused tab."
 
 [dependencies]
 fs2 = "0.4"

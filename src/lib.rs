@@ -63,18 +63,18 @@ fn run(subcommand: Subcommand, runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Resul
 }
 
 fn toggle(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
-    let snapshot = herdr.workspace_list()?;
-    let context_workspace_id = runtime
+    let snapshot = herdr.tab_list()?;
+    let context_tab_id = runtime
         .context_json
         .as_deref()
-        .and_then(parse_context_workspace_id);
-    let current_workspace_id = snapshot
-        .focused_workspace_id()
+        .and_then(parse_context_tab_id);
+    let current_tab_id = snapshot
+        .focused_tab_id()
         .map(str::to_owned)
-        .or_else(|| context_workspace_id.filter(|id| snapshot.contains_workspace(id)));
+        .or_else(|| context_tab_id.filter(|id| snapshot.contains_tab(id)));
 
     let store = StateStore::new(&runtime.state_dir);
-    let Some(current_workspace_id) = current_workspace_id else {
+    let Some(current_tab_id) = current_tab_id else {
         store.update(|memory| (memory, ()))?;
         return Ok(());
     };
@@ -82,7 +82,7 @@ fn toggle(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
     let target = store.update(|memory| match memory {
         Memory::Empty => (
             Memory::Current {
-                current: current_workspace_id.clone(),
+                current: current_tab_id.clone(),
                 last: None,
             },
             None,
@@ -101,7 +101,7 @@ fn toggle(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
             current,
             last: Some(last),
         } => {
-            if !snapshot.contains_workspace(&last) || last == current_workspace_id {
+            if !snapshot.contains_tab(&last) || last == current_tab_id {
                 (
                     Memory::Current {
                         current,
@@ -123,37 +123,33 @@ fn toggle(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
     })?;
 
     if let Some(target) = target {
-        herdr.focus_workspace(&target)?;
+        herdr.focus_tab(&target)?;
     }
 
     Ok(())
 }
 
 fn focused(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
-    let Some(event_workspace_id) = runtime
-        .event_json
-        .as_deref()
-        .and_then(parse_event_workspace_id)
-    else {
+    let Some(event_tab_id) = runtime.event_json.as_deref().and_then(parse_event_tab_id) else {
         return Ok(());
     };
 
-    let snapshot = herdr.workspace_list()?;
-    if snapshot.focused_workspace_id() != Some(event_workspace_id.as_str()) {
+    let snapshot = herdr.tab_list()?;
+    if snapshot.focused_tab_id() != Some(event_tab_id.as_str()) {
         return Ok(());
     }
 
     StateStore::new(&runtime.state_dir).update(|memory| {
         let next = match memory {
             Memory::Empty => Memory::Current {
-                current: event_workspace_id,
+                current: event_tab_id,
                 last: None,
             },
-            Memory::Current { current, last } if current == event_workspace_id => {
+            Memory::Current { current, last } if current == event_tab_id => {
                 Memory::Current { current, last }
             }
             Memory::Current { current, .. } => Memory::Current {
-                current: event_workspace_id,
+                current: event_tab_id,
                 last: Some(current),
             },
         };
@@ -164,31 +160,26 @@ fn focused(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
 }
 
 fn closed(runtime: &RuntimeEnv, herdr: &dyn Herdr) -> Result<(), PluginError> {
-    let Some(closed_workspace_id) = runtime
-        .event_json
-        .as_deref()
-        .and_then(parse_event_workspace_id)
-    else {
+    let Some(closed_tab_id) = runtime.event_json.as_deref().and_then(parse_event_tab_id) else {
         return Ok(());
     };
 
-    let snapshot = herdr.workspace_list()?;
-    let focused_workspace_id = snapshot.focused_workspace_id().map(str::to_owned);
+    let snapshot = herdr.tab_list()?;
+    let focused_tab_id = snapshot.focused_tab_id().map(str::to_owned);
 
     StateStore::new(&runtime.state_dir).update(|memory| {
         let next = match memory {
             Memory::Empty => Memory::Empty,
             Memory::Current { current, last } => {
-                let current = if current == closed_workspace_id {
-                    focused_workspace_id.clone()
+                let current = if current == closed_tab_id {
+                    focused_tab_id.clone()
                 } else {
                     Some(current)
                 };
 
                 match current {
                     Some(current) => {
-                        let last =
-                            last.filter(|last| last != &closed_workspace_id && last != &current);
+                        let last = last.filter(|last| last != &closed_tab_id && last != &current);
                         Memory::Current { current, last }
                     }
                     None => Memory::Empty,
@@ -237,7 +228,7 @@ where
 }
 
 fn usage() -> String {
-    "usage: herdr-last-workspace <toggle|focused|closed>".to_string()
+    "usage: herdr-last-tab <toggle|focused|closed>".to_string()
 }
 
 fn env_path(name: &str) -> Result<PathBuf, PluginError> {
@@ -258,8 +249,8 @@ struct RuntimeEnv {
 }
 
 trait Herdr {
-    fn workspace_list(&self) -> Result<WorkspaceSnapshot, PluginError>;
-    fn focus_workspace(&self, workspace_id: &str) -> Result<(), PluginError>;
+    fn tab_list(&self) -> Result<TabSnapshot, PluginError>;
+    fn focus_tab(&self, workspace_id: &str) -> Result<(), PluginError>;
 }
 
 struct CliHerdr {
@@ -267,34 +258,34 @@ struct CliHerdr {
 }
 
 impl Herdr for CliHerdr {
-    fn workspace_list(&self) -> Result<WorkspaceSnapshot, PluginError> {
+    fn tab_list(&self) -> Result<TabSnapshot, PluginError> {
         let output = Command::new(&self.bin_path)
-            .arg("workspace")
+            .arg("tab")
             .arg("list")
             .output()
             .map_err(|error| {
                 PluginError::new(format!(
-                    "failed to run HERDR_BIN_PATH workspace list ({}): {error}",
+                    "failed to run HERDR_BIN_PATH tab list ({}): {error}",
                     self.bin_path.display()
                 ))
             })?;
 
         if !output.status.success() {
-            return Err(command_failure("HERDR_BIN_PATH workspace list", &output));
+            return Err(command_failure("HERDR_BIN_PATH tab list", &output));
         }
 
-        parse_workspace_list_response(&output.stdout)
+        parse_tab_list_response(&output.stdout)
     }
 
-    fn focus_workspace(&self, workspace_id: &str) -> Result<(), PluginError> {
+    fn focus_tab(&self, tab_id: &str) -> Result<(), PluginError> {
         let output = Command::new(&self.bin_path)
-            .arg("workspace")
+            .arg("tab")
             .arg("focus")
-            .arg(workspace_id)
+            .arg(tab_id)
             .output()
             .map_err(|error| {
                 PluginError::new(format!(
-                    "failed to run HERDR_BIN_PATH workspace focus {workspace_id} ({}): {error}",
+                    "failed to run HERDR_BIN_PATH tab focus {tab_id} ({}): {error}",
                     self.bin_path.display()
                 ))
             })?;
@@ -302,7 +293,7 @@ impl Herdr for CliHerdr {
         if output.status.success() {
             Ok(())
         } else {
-            Err(command_failure("HERDR_BIN_PATH workspace focus", &output))
+            Err(command_failure("HERDR_BIN_PATH tab focus", &output))
         }
     }
 }
@@ -321,63 +312,62 @@ fn command_failure(command: &str, output: &Output) -> PluginError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct WorkspaceSnapshot {
-    workspaces: Vec<WorkspaceInfo>,
+struct TabSnapshot {
+    tabs: Vec<TabInfo>,
 }
 
-impl WorkspaceSnapshot {
-    fn focused_workspace_id(&self) -> Option<&str> {
-        self.workspaces
+impl TabSnapshot {
+    fn focused_tab_id(&self) -> Option<&str> {
+        self.tabs
             .iter()
-            .find(|workspace| workspace.focused)
-            .map(|workspace| workspace.workspace_id.as_str())
+            .find(|tab| tab.focused)
+            .map(|tab| tab.tab_id.as_str())
     }
 
-    fn contains_workspace(&self, workspace_id: &str) -> bool {
-        self.workspaces
-            .iter()
-            .any(|workspace| workspace.workspace_id == workspace_id)
+    fn contains_tab(&self, tab_id: &str) -> bool {
+        self.tabs.iter().any(|tab| tab.tab_id == tab_id)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-struct WorkspaceInfo {
+struct TabInfo {
+    tab_id: String,
     workspace_id: String,
     focused: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct WorkspaceListResponse {
-    result: WorkspaceListResult,
+struct TabListResponse {
+    result: TabListResult,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum WorkspaceListResult {
-    WorkspaceList { workspaces: Vec<WorkspaceInfo> },
+enum TabListResult {
+    TabList { tabs: Vec<TabInfo> },
 }
 
-fn parse_workspace_list_response(stdout: &[u8]) -> Result<WorkspaceSnapshot, PluginError> {
+fn parse_tab_list_response(stdout: &[u8]) -> Result<TabSnapshot, PluginError> {
     let value: Value = serde_json::from_slice(stdout).map_err(|error| {
         PluginError::new(format!(
-            "failed to parse HERDR_BIN_PATH workspace list JSON: {error}"
+            "failed to parse HERDR_BIN_PATH tab list JSON: {error}"
         ))
     })?;
 
     if let Some(error) = herdr_error_message(&value) {
         return Err(PluginError::new(format!(
-            "HERDR_BIN_PATH workspace list returned an error: {error}"
+            "HERDR_BIN_PATH tab list returned an error: {error}"
         )));
     }
 
-    let response: WorkspaceListResponse = serde_json::from_value(value).map_err(|error| {
+    let response: TabListResponse = serde_json::from_value(value).map_err(|error| {
         PluginError::new(format!(
-            "HERDR_BIN_PATH workspace list returned an unexpected response: {error}"
+            "HERDR_BIN_PATH tab list returned an unexpected response: {error}"
         ))
     })?;
 
     match response.result {
-        WorkspaceListResult::WorkspaceList { workspaces } => Ok(WorkspaceSnapshot { workspaces }),
+        TabListResult::TabList { tabs } => Ok(TabSnapshot { tabs }),
     }
 }
 
@@ -406,9 +396,9 @@ enum Memory {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 struct PersistedState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    current_workspace_id: Option<String>,
+    current_tab_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    last_workspace_id: Option<String>,
+    last_tab_id: Option<String>,
     #[serde(default)]
     updated_unix_ms: u64,
 }
@@ -417,21 +407,21 @@ impl PersistedState {
     fn from_memory(memory: &Memory, updated_unix_ms: u64) -> Self {
         match memory {
             Memory::Empty => Self {
-                current_workspace_id: None,
-                last_workspace_id: None,
+                current_tab_id: None,
+                last_tab_id: None,
                 updated_unix_ms,
             },
             Memory::Current { current, last } => Self {
-                current_workspace_id: Some(current.clone()),
-                last_workspace_id: last.clone(),
+                current_tab_id: Some(current.clone()),
+                last_tab_id: last.clone(),
                 updated_unix_ms,
             },
         }
     }
 
     fn into_memory(self) -> LoadedMemory {
-        let original_current = self.current_workspace_id;
-        let original_last = self.last_workspace_id;
+        let original_current = self.current_tab_id;
+        let original_last = self.last_tab_id;
         let current = original_current.clone().filter(|id| !id.is_empty());
         let last = original_last.clone().filter(|id| !id.is_empty());
 
@@ -611,14 +601,14 @@ fn write_memory(path: &Path, memory: &Memory) -> Result<(), PluginError> {
     })
 }
 
-fn parse_event_workspace_id(raw: &str) -> Option<String> {
+fn parse_event_tab_id(raw: &str) -> Option<String> {
     let value: Value = serde_json::from_str(raw).ok()?;
-    string_at(&value, &["data", "workspace_id"]).or_else(|| string_at(&value, &["workspace_id"]))
+    string_at(&value, &["data", "tab_id"]).or_else(|| string_at(&value, &["tab_id"]))
 }
 
-fn parse_context_workspace_id(raw: &str) -> Option<String> {
+fn parse_context_tab_id(raw: &str) -> Option<String> {
     let value: Value = serde_json::from_str(raw).ok()?;
-    string_at(&value, &["workspace_id"])
+    string_at(&value, &["tab_id"])
 }
 
 fn string_at(value: &Value, path: &[&str]) -> Option<String> {
@@ -628,7 +618,7 @@ fn string_at(value: &Value, path: &[&str]) -> Option<String> {
     }
     current
         .as_str()
-        .filter(|workspace_id| !workspace_id.is_empty())
+        .filter(|id| !id.is_empty())
         .map(str::to_owned)
 }
 
@@ -664,26 +654,26 @@ mod tests {
     use std::cell::RefCell;
 
     struct FakeHerdr {
-        snapshot: WorkspaceSnapshot,
+        snapshot: TabSnapshot,
         focused: RefCell<Vec<String>>,
     }
 
     impl FakeHerdr {
-        fn new(workspaces: Vec<(&str, bool)>) -> Self {
+        fn new(tabs: Vec<(&str, bool)>) -> Self {
             Self {
-                snapshot: snapshot(workspaces),
+                snapshot: snapshot(tabs),
                 focused: RefCell::new(Vec::new()),
             }
         }
     }
 
     impl Herdr for FakeHerdr {
-        fn workspace_list(&self) -> Result<WorkspaceSnapshot, PluginError> {
+        fn tab_list(&self) -> Result<TabSnapshot, PluginError> {
             Ok(self.snapshot.clone())
         }
 
-        fn focus_workspace(&self, workspace_id: &str) -> Result<(), PluginError> {
-            self.focused.borrow_mut().push(workspace_id.to_string());
+        fn focus_tab(&self, tab_id: &str) -> Result<(), PluginError> {
+            self.focused.borrow_mut().push(tab_id.to_string());
             Ok(())
         }
     }
@@ -696,12 +686,13 @@ mod tests {
         }
     }
 
-    fn snapshot(workspaces: Vec<(&str, bool)>) -> WorkspaceSnapshot {
-        WorkspaceSnapshot {
-            workspaces: workspaces
+    fn snapshot(tabs: Vec<(&str, bool)>) -> TabSnapshot {
+        TabSnapshot {
+            tabs: tabs
                 .into_iter()
-                .map(|(workspace_id, focused)| WorkspaceInfo {
-                    workspace_id: workspace_id.to_string(),
+                .map(|(tab_id, focused)| TabInfo {
+                    tab_id: tab_id.to_string(),
+                    workspace_id: tab_id.to_string(),
                     focused,
                 })
                 .collect(),
@@ -710,7 +701,7 @@ mod tests {
 
     fn temp_state_dir(label: &str) -> PathBuf {
         let path = env::temp_dir().join(format!(
-            "herdr-last-workspace-{label}-{}-{}",
+            "herdr-last-tab-{label}-{}-{}",
             std::process::id(),
             current_unix_ms()
         ));
@@ -719,27 +710,27 @@ mod tests {
     }
 
     #[test]
-    fn parses_workspace_list_response() {
+    fn parses_tab_list_response() {
         let response = br#"{
-            "id":"cli:workspace:list",
+            "id":"cli:tab:list",
             "result":{
-                "type":"workspace_list",
-                "workspaces":[
-                    {"workspace_id":"workspace-1","number":2,"label":"B","focused":true},
-                    {"workspace_id":"workspace-0","number":1,"label":"A","focused":false}
+                "type":"tab_list",
+                "tabs":[
+                    {"tab_id":"tab-1","workspace_id":"w1","number":2,"label":"B","focused":true},
+                    {"tab_id":"tab-0","workspace_id":"w1","number":1,"label":"A","focused":false}
                 ]
             }
         }"#;
 
-        let snapshot = parse_workspace_list_response(response).expect("response should parse");
+        let snapshot = parse_tab_list_response(response).expect("response should parse");
 
-        assert_eq!(snapshot.focused_workspace_id(), Some("workspace-1"));
-        assert!(snapshot.contains_workspace("workspace-0"));
-        assert!(!snapshot.contains_workspace("workspace-2"));
+        assert_eq!(snapshot.focused_tab_id(), Some("tab-1"));
+        assert!(snapshot.contains_tab("tab-0"));
+        assert!(!snapshot.contains_tab("tab-2"));
     }
 
     #[test]
-    fn focused_event_updates_current_and_last_workspace_ids() {
+    fn focused_event_updates_current_and_last_tab_ids() {
         let state_dir = temp_state_dir("focused-transition");
         let mut runtime = runtime(state_dir.clone());
 
@@ -805,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    fn toggle_focuses_remembered_workspace_by_id() {
+    fn toggle_focuses_remembered_tab_by_id() {
         let state_dir = temp_state_dir("toggle");
         write_memory(
             &state_dir.join(STATE_FILE_NAME),
@@ -847,7 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn toggle_clears_stale_last_workspace_without_focusing() {
+    fn toggle_clears_stale_last_tab_without_focusing() {
         let state_dir = temp_state_dir("toggle-stale-last");
         write_memory(
             &state_dir.join(STATE_FILE_NAME),
@@ -876,7 +867,7 @@ mod tests {
     }
 
     #[test]
-    fn closed_event_clears_remembered_workspace() {
+    fn closed_event_clears_remembered_tab() {
         let state_dir = temp_state_dir("closed-last");
         write_memory(
             &state_dir.join(STATE_FILE_NAME),
@@ -930,9 +921,7 @@ mod tests {
         let _ = fs::remove_dir_all(state_dir);
     }
 
-    fn event_json(workspace_id: &str) -> String {
-        format!(
-            r#"{{"event":"workspace_focused","data":{{"type":"workspace_focused","workspace_id":"{workspace_id}"}}}}"#
-        )
+    fn event_json(tab_id: &str) -> String {
+        format!(r#"{{"event":"tab_focused","data":{{"type":"tab_focused","tab_id":"{tab_id}"}}}}"#)
     }
 }

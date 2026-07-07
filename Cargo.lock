@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "herdr-last-workspace"
+name = "herdr-last-tab"
 version = "0.1.0"
 dependencies = [
  "fs2",

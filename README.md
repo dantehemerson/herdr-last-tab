@@ -1,25 +1,27 @@
-# Herdr Last Workspace
+# Herdr Last Tab
 
-Herdr plugin that adds one action: `third774.last-workspace.toggle`.
+Based on: [third774/herdr-last-workspace](https://github.com/third774/herdr-last-workspace)
 
-Use it to jump back to the workspace you were just using. Focus workspace A, move to workspace B, run the action, and Herdr focuses A. Run it again and Herdr focuses B.
+Herdr plugin that adds one action: `dantehemerson.last-tab.toggle`.
 
-The plugin tracks stable Herdr workspace IDs instead of workspace numbers, so it keeps working when workspace ordering changes.
+Use it to jump back to the tab you were just using. Focus tab A, move to tab B, run the action, and Herdr focuses A. Run it again and Herdr focuses B.
+
+The plugin tracks stable Herdr tab IDs instead of tab numbers, so it keeps working when tab ordering changes.
 
 ## Install
 
 Requires **Herdr >= 0.7.0**. The current manifest builds from source with Cargo, so you also need a local Rust toolchain.
 
 ```bash
-herdr plugin install third774/herdr-last-workspace
+herdr plugin install dantehemerson/herdr-last-tab
 ```
 
 Herdr clones the repo, runs the manifest build step, and registers the plugin action. Manage it with:
 
 ```bash
 herdr plugin list
-herdr plugin action list --plugin third774.last-workspace
-herdr plugin uninstall third774.last-workspace
+herdr plugin action list --plugin dantehemerson.last-tab
+herdr plugin uninstall dantehemerson.last-tab
 ```
 
 ## Binding A Key
@@ -30,8 +32,8 @@ Add a `[[keys.command]]` entry to your Herdr config, usually `~/.config/herdr/co
 [[keys.command]]
 key = "prefix+tab"
 type = "plugin_action"
-command = "third774.last-workspace.toggle"
-description = "last workspace"
+command = "dantehemerson.last-tab.toggle"
+description = "last tab"
 ```
 
 Reload Herdr config after editing:
@@ -44,25 +46,25 @@ Then press your Herdr prefix (default `ctrl+b`) followed by the bound key.
 
 ## Usage
 
-The first run usually records the current workspace and does not move focus because there is no previous workspace yet.
+The first run usually records the current tab and does not move focus because there is no previous tab yet.
 
-After you have focused at least two workspaces, running `third774.last-workspace.toggle` focuses the previously focused workspace. The next `workspace.focused` event updates the history, so repeated toggles switch between the same two workspaces.
+After you have focused at least two tabs, running `dantehemerson.last-tab.toggle` focuses the previously focused tab. The next `tab.focused` event updates the history, so repeated toggles switch between the same two tabs.
 
 Normal no-op cases exit cleanly without showing Herdr error toasts:
 
-- No previous workspace has been recorded yet.
-- The previous workspace was closed.
-- Herdr does not report a focused workspace.
+- No previous tab has been recorded yet.
+- The previous tab was closed.
+- Herdr does not report a focused tab.
 
 ## How It Works
 
-The plugin listens for Herdr's `workspace.focused` and `workspace.closed` events.
+The plugin listens for Herdr's `tab.focused` and `tab.closed` events.
 
-On focus events, it stores the current and previous workspace IDs under Herdr's plugin state directory. On closed events, it removes a remembered workspace if that workspace was closed. When the toggle action runs, it calls back into Herdr with:
+On focus events, it stores the current and previous tab IDs under Herdr's plugin state directory. On closed events, it removes a remembered tab if that tab was closed. When the toggle action runs, it calls back into Herdr with:
 
 ```bash
-$HERDR_BIN_PATH workspace list
-$HERDR_BIN_PATH workspace focus <workspace_id>
+$HERDR_BIN_PATH tab list
+$HERDR_BIN_PATH tab focus <tab_id>
 ```
 
 State is stored as `state.json` with a `state.lock` file under `HERDR_PLUGIN_STATE_DIR`.
@@ -71,7 +73,7 @@ State is stored as `state.json` with a `state.lock` file under `HERDR_PLUGIN_STA
 
 ```bash
 cargo build --release
-herdr plugin link /path/to/herdr-last-workspace
+herdr plugin link /path/to/herdr-last-tab
 ```
 
 Run the checks used for development:
@@ -87,13 +89,13 @@ cargo clippy --all-targets -- -D warnings
 List registered actions:
 
 ```bash
-herdr plugin action list --plugin third774.last-workspace
+herdr plugin action list --plugin dantehemerson.last-tab
 ```
 
 Check plugin logs:
 
 ```bash
-herdr plugin log list --plugin third774.last-workspace
+herdr plugin log list --plugin dantehemerson.last-tab
 ```
 
 If the action is missing, reinstall or relink the plugin and confirm the build step completed successfully.

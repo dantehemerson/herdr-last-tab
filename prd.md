@@ -56,7 +56,7 @@ The user installs or links the plugin, then adds a keybind:
 [[keys.command]]
 key = "prefix+tab"
 type = "plugin_action"
-command = "third774.last-workspace.toggle"
+command = "dantehemerson.last-workspace.toggle"
 description = "last workspace"
 ```
 
@@ -88,7 +88,7 @@ Current API limits:
 ## Manifest Shape
 
 ```toml
-id = "third774.last-workspace"
+id = "dantehemerson.last-workspace"
 name = "Last Workspace"
 version = "0.1.0"
 min_herdr_version = "0.7.0"

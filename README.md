@@ -1,13 +1,5 @@
 # Herdr Last Tab
 
-> [!IMPORTANT]
-> This plugin is archived. Use `keys.last_pane` config instead:
-> 
-> ```
-> [keys]
-> last_pane = "prefix+tab"
-> ```
-
 Based on: [third774/herdr-last-workspace](https://github.com/third774/herdr-last-workspace)
 
 Herdr plugin that adds one action: `dantehemerson.last-tab.toggle`.

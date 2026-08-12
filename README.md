@@ -30,7 +30,7 @@ Add a `[[keys.command]]` entry to your Herdr config, usually `~/.config/herdr/co
 
 ```toml
 [[keys.command]]
-key = "prefix+tab"
+key = "prefix+space"
 type = "plugin_action"
 command = "dantehemerson.last-tab.toggle"
 description = "last tab"
